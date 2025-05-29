@@ -1,0 +1,495 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String?   @unique
+  password      String
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime?
+  gender        Gender
+  profileImage  String?
+  isActive      Boolean   @default(true)
+  role          UserRole
+  userType      UserType
+  
+  // Company/Institute Relations
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id])
+  instituteId   String?
+  institute     Institute? @relation(fields: [instituteId], references: [id])
+  
+  // Islamic Profile
+  islamicProfile IslamicProfile?
+  
+  // Activities
+  taskAssignments    TaskAssignment[]
+  attendanceRecords  AttendanceRecord[]
+  programParticipations ProgramParticipation[]
+  amalSubmissions    AmalSubmission[]
+  achievements       Achievement[]
+  notifications      UserNotification[]
+  progressReports    ProgressReport[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("users")
+}
+
+model IslamicProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Islamic Information
+  islamicName       String?
+  prayerTimings     Json?     // Store prayer preferences
+  quranProgress     Json?     // Store Quran reading progress
+  islamicGoals      String[]
+  favoriteSupplications String[]
+  
+  // Behavioral Metrics
+  behaviorScore     Int       @default(0)
+  selfDevelopmentScore Int    @default(0)
+  amalScore         Int       @default(0)
+  overallRating     Float     @default(0.0)
+  
+  // Tracking
+  lastActiveDate    DateTime?
+  totalAmalCompleted Int      @default(0)
+  currentStreak     Int       @default(0)
+  longestStreak     Int       @default(0)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("islamic_profiles")
+}
+
+// Organization Structure
+model Company {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean   @default(true)
+  
+  employees   User[]
+  institutes  Institute[]
+  programs    Program[]
+  tasks       Task[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("companies")
+}
+
+model Institute {
+  id          String      @id @default(cuid())
+  name        String
+  type        InstituteType
+  gender      Gender      // MALE, FEMALE for segregated institutes
+  description String?
+  address     String?
+  
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  
+  students    User[]
+  programs    Program[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("institutes")
+}
+
+// Task Management
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  type          TaskType
+  category      TaskCategory
+  priority      Priority  @default(MEDIUM)
+  
+  // Scheduling
+  frequency     Frequency
+  startDate     DateTime
+  endDate       DateTime?
+  
+  // Target Assignment
+  isForAll      Boolean   @default(false)
+  targetGender  Gender?
+  targetUserType UserType?
+  
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  
+  assignments   TaskAssignment[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("tasks")
+}
+
+model TaskAssignment {
+  id            String    @id @default(cuid())
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status        TaskStatus @default(PENDING)
+  assignedDate  DateTime  @default(now())
+  dueDate       DateTime
+  completedDate DateTime?
+  notes         String?
+  
+  // Scoring
+  completionScore Int?
+  behaviorImpact  Int?
+  
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+// Amal (Good Deeds) Management
+model AmalSubmission {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title         String
+  description   String
+  category      AmalCategory
+  date          DateTime  @default(now())
+  
+  // Verification
+  isVerified    Boolean   @default(false)
+  verifiedBy    String?
+  verificationDate DateTime?
+  
+  // Scoring
+  impactScore   Int       @default(1)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("amal_submissions")
+}
+
+// Program Management
+model Program {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  type          ProgramType
+  category      String
+  
+  // Scheduling
+  startDate     DateTime
+  endDate       DateTime
+  registrationDeadline DateTime?
+  
+  // Capacity
+  maxParticipants Int?
+  currentParticipants Int @default(0)
+  
+  // Target Criteria
+  isInviteOnly  Boolean   @default(false)
+  targetGender  Gender?
+  targetUserType UserType?
+  minBehaviorScore Int?
+  
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id])
+  instituteId   String?
+  institute     Institute? @relation(fields: [instituteId], references: [id])
+  
+  participations ProgramParticipation[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("programs")
+}
+
+model ProgramParticipation {
+  id            String    @id @default(cuid())
+  programId     String
+  program       Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status        ParticipationStatus @default(REGISTERED)
+  registrationDate DateTime @default(now())
+  completionDate DateTime?
+  
+  // Performance
+  attendanceRate Float?
+  performanceScore Int?
+  feedback      String?
+  
+  @@unique([programId, userId])
+  @@map("program_participations")
+}
+
+// Attendance Management
+model AttendanceRecord {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date        DateTime  @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      AttendanceStatus
+  
+  // Additional Info
+  location    String?
+  notes       String?
+  excuseReason String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([userId, date])
+  @@map("attendance_records")
+}
+
+// Achievement System
+model Achievement {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title         String
+  description   String?
+  category      AchievementCategory
+  type          AchievementType
+  
+  // Timing
+  period        Period    // WEEKLY, MONTHLY, YEARLY
+  achievedDate  DateTime  @default(now())
+  
+  // Metrics
+  score         Int
+  rank          Int?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("achievements")
+}
+
+// Progress Tracking
+model ProgressReport {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  period          Period
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Scores
+  behaviorScore   Int
+  amalScore       Int
+  attendanceScore Int
+  taskCompletionScore Int
+  overallScore    Int
+  
+  // Rankings
+  behaviorRank    Int?
+  amalRank        Int?
+  overallRank     Int?
+  
+  // Progress Data
+  improvementAreas String[]
+  achievements    String[]
+  recommendations String[]
+  
+  generatedAt     DateTime  @default(now())
+  
+  @@map("progress_reports")
+}
+
+// Notification System
+model UserNotification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  message     String
+  type        NotificationType
+  category    String?
+  
+  // Metadata
+  data        Json?
+  
+  // Status
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  
+  createdAt   DateTime  @default(now())
+  
+  @@map("user_notifications")
+}
+
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  SUPERVISOR
+  EMPLOYEE
+  STUDENT
+}
+
+enum UserType {
+  EMPLOYEE
+  STUDENT
+}
+
+enum InstituteType {
+  SKILL_DEVELOPMENT
+  ISLAMIC_STUDIES
+  VOCATIONAL
+  OTHER
+}
+
+enum TaskType {
+  BEHAVIOR_IMPROVEMENT
+  SELF_DEVELOPMENT
+  AMAL_PRACTICE
+  ISLAMIC_STUDY
+  SKILL_BUILDING
+  OTHER
+}
+
+enum TaskCategory {
+  PRAYER
+  QURAN_READING
+  DHIKR
+  CHARITY
+  CHARACTER_BUILDING
+  LEARNING
+  COMMUNITY_SERVICE
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum AmalCategory {
+  WORSHIP
+  CHARITY
+  KINDNESS
+  LEARNING
+  COMMUNITY_SERVICE
+  FAMILY_CARE
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum ProgramType {
+  WORKSHOP
+  SEMINAR
+  TRAINING
+  RETREAT
+  COMPETITION
+  COMMUNITY_SERVICE
+  ISLAMIC_EVENT
+  OTHER
+}
+
+enum ParticipationStatus {
+  REGISTERED
+  CONFIRMED
+  ATTENDED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  HALF_DAY
+}
+
+enum AchievementCategory {
+  BEHAVIOR
+  AMAL
+  ATTENDANCE
+  TASK_COMPLETION
+  PROGRAM_PARTICIPATION
+  OVERALL_EXCELLENCE
+}
+
+enum AchievementType {
+  TOP_PERFORMER
+  MOST_IMPROVED
+  CONSISTENT_PERFORMER
+  SPECIAL_RECOGNITION
+}
+
+enum NotificationType {
+  TASK_ASSIGNMENT
+  PROGRAM_INVITATION
+  ACHIEVEMENT
+  REMINDER
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum Period {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
