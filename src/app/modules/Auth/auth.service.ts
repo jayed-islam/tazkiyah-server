@@ -184,7 +184,6 @@
 // }
 
 import { Gender, UserRole, UserType } from "@prisma/client";
-import { jwtHelpers } from "../../../helpers/jwtHelpers";
 import prisma from "../../../shared/prisma";
 import * as bcrypt from "bcrypt";
 import config from "../../../config";
@@ -192,6 +191,7 @@ import { Secret } from "jsonwebtoken";
 import emailSender from "./emailSender";
 import ApiError from "../../errors/ApiError";
 import httpStatus from "http-status";
+import { jwtHelpers } from "../../../helpars/jwtHelpers";
 
 // Types for the auth service
 interface LoginPayload {
@@ -239,7 +239,10 @@ const registerUser = async (payload: RegisterUserPayload) => {
   });
 
   if (existingUser) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "User already exists with this email or phone!");
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "User already exists with this email or phone!"
+    );
   }
 
   // Validate company/institute existence
@@ -291,7 +294,8 @@ const registerUser = async (payload: RegisterUserPayload) => {
         islamicName: payload.islamicProfile?.islamicName,
         prayerTimings: payload.islamicProfile?.prayerTimings,
         islamicGoals: payload.islamicProfile?.islamicGoals || [],
-        favoriteSupplications: payload.islamicProfile?.favoriteSupplications || [],
+        favoriteSupplications:
+          payload.islamicProfile?.favoriteSupplications || [],
         behaviorScore: 0,
         selfDevelopmentScore: 0,
         amalScore: 0,
@@ -370,7 +374,10 @@ const loginUser = async (payload: LoginPayload) => {
   }
 
   // Check password
-  const isCorrectPassword: boolean = await bcrypt.compare(payload.password, userData.password);
+  const isCorrectPassword: boolean = await bcrypt.compare(
+    payload.password,
+    userData.password
+  );
 
   if (!isCorrectPassword) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Password incorrect!");
@@ -413,7 +420,10 @@ const loginUser = async (payload: LoginPayload) => {
 const refreshToken = async (token: string) => {
   let decodedData;
   try {
-    decodedData = jwtHelpers.verifyToken(token, config.jwt.refresh_token_secret as Secret);
+    decodedData = jwtHelpers.verifyToken(
+      token,
+      config.jwt.refresh_token_secret as Secret
+    );
   } catch (err) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
   }
@@ -467,10 +477,16 @@ const changePassword = async (user: any, payload: ChangePasswordPayload) => {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found!");
   }
 
-  const isCorrectPassword: boolean = await bcrypt.compare(payload.oldPassword, userData.password);
+  const isCorrectPassword: boolean = await bcrypt.compare(
+    payload.oldPassword,
+    userData.password
+  );
 
   if (!isCorrectPassword) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Current password is incorrect!");
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "Current password is incorrect!"
+    );
   }
 
   const hashedPassword: string = await bcrypt.hash(payload.newPassword, 12);
@@ -512,7 +528,8 @@ const forgotPassword = async (payload: { email: string }) => {
     config.jwt.reset_pass_token_expires_in as string
   );
 
-  const resetPassLink = config.reset_pass_link + `?userId=${userData.id}&token=${resetPassToken}`;
+  const resetPassLink =
+    config.reset_pass_link + `?userId=${userData.id}&token=${resetPassToken}`;
 
   await emailSender(
     userData.email,
@@ -553,7 +570,10 @@ const resetPassword = async (token: string, payload: ResetPasswordPayload) => {
   }
 
   try {
-    const isValidToken = jwtHelpers.verifyToken(token, config.jwt.reset_pass_secret as Secret);
+    const isValidToken = jwtHelpers.verifyToken(
+      token,
+      config.jwt.reset_pass_secret as Secret
+    );
 
     // Verify token belongs to this user
     if (isValidToken.userId !== payload.id) {

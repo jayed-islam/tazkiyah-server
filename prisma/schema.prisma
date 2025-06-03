@@ -88,6 +88,7 @@ model Company {
   phone       String?
   email       String?
   isActive    Boolean   @default(true)
+  status      CompanyStatus  @default(ACTIVE)
   
   employees   User[]
   institutes  Institute[]
@@ -203,6 +204,7 @@ model Program {
   description   String?
   type          ProgramType
   category      String
+  status        ProgramStatus @default(DRAFT)  
   
   // Scheduling
   startDate     DateTime
@@ -372,6 +374,7 @@ enum UserRole {
 enum UserType {
   EMPLOYEE
   STUDENT
+  OTHER
 }
 
 enum InstituteType {
@@ -492,4 +495,21 @@ enum Period {
   MONTHLY
   QUARTERLY
   YEARLY
+}
+
+enum CompanyStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  CLOSED
+}
+
+enum ProgramStatus {
+  DRAFT
+  UPCOMING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
 }
